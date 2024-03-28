@@ -101,6 +101,7 @@ class GeneralProblemHandler:
                 s_str = str(src[i]).replace("**","^").replace(" ","")
                 writeOneLineInFile(file, s_str, fileType)
                 if printOnScreen:
+                    print(" ")
                     print("Source(%d):  %s"%(i, s_str))
             closeFile(file)
 
