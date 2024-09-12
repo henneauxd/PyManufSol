@@ -11,7 +11,7 @@ from PhysicalModels.CompressibleNavierStokesModels import CompressibleNavierStok
 from ManufSolution.ManufSolShape.PolarPolynomialManufSol import PolarPolynomialManufSol
 from ManufSolution.ManufSolShape.UserDefinedManufSol import UserDefinedManufSol
 from ManufSolution.ManufSolContainer.CompressibleFlowManufSolContainer import CompressibleFlowManufSolContainer
-from Common.MMSTags import CompressibleFlowVarSetTags, FluidSolutionTags, FluidSolutionGradientTags, ProjectionType
+from Common.MMSTags import CompressibleFlowVarSetTags, MMSSourceTermTags, FluidSolutionTags, FluidSolutionGradientTags, ProjectionType
 from BoundaryConditions.BoundaryGeometry import BoundaryGeometryFromEquation, TimeDependentBoundaryGeometryFromEquation
 from BoundaryConditions.GeneralBoundaryConditions import GeneralBoundaryConditions
 from Common.MMSTags import CoordinatesSystemType, OutputFileType
@@ -32,7 +32,7 @@ do_plot = True
 Lx = [0.0,1.0]
 Ly = [0.0,1.0]
 Lz = [0.0,1.0]
-domain_dim = 3
+domain_dim = 2
 time_dependent = True
 
 # Equation of state
@@ -193,7 +193,10 @@ if domain_dim == 2 and do_plot:
         tau_nt_plot = QuantityInfoForPlot(FluidSolutionGradientTags.SHEARSTRESS, True, ProjectionType.NORMALTANGENT, time_plot)
         q_n_plot = QuantityInfoForPlot(FluidSolutionGradientTags.HEATFLUX, True, ProjectionType.NORMAL, time_plot)
         q_minus_tauu_n_plot = QuantityInfoForPlot(FluidSolutionGradientTags.HEATFLUX_MINUS_VISCOUSDISSIPATION, True, ProjectionType.NORMAL, time_plot)
-        quantities_plot = [p_plot]#, T_plot, u_plot, v_plot, rho_plot]
+        
+        src_conv_plot = QuantityInfoForPlot(MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE_OVER_CONVECTIVE, False, ProjectionType.NOPROJECTION, time_plot)
+
+        quantities_plot = [src_conv_plot]#, T_plot, u_plot, v_plot, rho_plot]
 
         # Sides of interface
         side_interface_plot = dict()
@@ -204,3 +207,4 @@ if domain_dim == 2 and do_plot:
         # my_problem.plotQuantitiesAlongOneDimLinesOverThisArea(quantities_plot, lines_plot, plot_area_cart, side_interface_plot, 20, 1)
 
         my_problem.plotQuantitiesOverThisTwoDimArea(quantities_plot, plot_area_cart, side_interface_plot, 40)
+

@@ -16,10 +16,21 @@ class CompressibleFlowVarSetTags(VarSetTags):
     PRIMITIVE_PVRHO = 3
 
 
+
 #* --- TAGS FOR SOLUTION VARIABLES --- *#
 # - Abstract level
 class SolutionTags(Enum):
     pass
+
+#* --- TAGS FOR MMS SOURCE TERMS --- *#
+class MMSSourceTermTags(SolutionTags):
+    MMS_SOURCE_CONVECTIVE = 1
+    MMS_SOURCE_DIFFUSIVE = 2
+    MMS_SOURCE_SRC = 3
+    MMS_SOURCE_UNSTEADY = 4
+    MMS_SOURCE_FULL = 5
+    MMS_SOURCE_CONVECTIVE_OVER_DIFFUSIVE = 6
+    MMS_SOURCE_DIFFUSIVE_OVER_CONVECTIVE = 7
 
 # - By-default solution tags
 class DefaultSolutionTags(SolutionTags):

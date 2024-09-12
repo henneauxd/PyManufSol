@@ -1,7 +1,7 @@
 import sympy as sp
 from typing import Optional
 from ManufSolution.ManufSolContainer.GeneralManufSolContainer import GeneralManufSolContainerSinglePhase
-from Common.MMSTags import SolutionTags, SolutionGradientTags, CoordinatesSystemType, VarSetTags, DefaultVarSetTags
+from Common.MMSTags import MMSSourceTermTags, SolutionTags, SolutionGradientTags, CoordinatesSystemType, VarSetTags, DefaultVarSetTags
 from Common.Utilities import *
 from typing import Union
 class GeneralPhysicalModels:
@@ -70,6 +70,32 @@ class GeneralPhysicalModels:
         for tag in self.manuf_sol_container.getDicManufSolPerTag():
             list_var.append(self.getGradSolTag(tag, self.spatial_sym_var, num_params, replace_params_before_deriv))
         return list_var
+    
+    def getMMSSourceTag(self, tag: MMSSourceTermTags, num_params: Optional[dict] = None):
+        var = 0.0
+        if not isinstance(tag, MMSSourceTermTags):
+            raise ValueError("The tag should be of 'MMSSourceTermTags' type")
+        
+        if tag == MMSSourceTermTags.MMS_SOURCE_CONVECTIVE:
+            var = self.computeMMSConvectiveSourceTerm(num_params)
+        elif tag == MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE:
+            var = self.computeMMSDiffusiveSourceTerm(num_params)
+        elif tag == MMSSourceTermTags.MMS_SOURCE_SRC:
+            var = self.computeMMSSourceSourceTerm(num_params)
+        elif tag == MMSSourceTermTags.MMS_SOURCE_UNSTEADY:
+            var = self.computeMMSUnsteadySourceTerm(num_params)
+        elif tag == MMSSourceTermTags.MMS_SOURCE_FULL:
+            var = self.computeMMSSourceTerm(num_params)
+        elif tag == MMSSourceTermTags.MMS_SOURCE_CONVECTIVE_OVER_DIFFUSIVE or tag == MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE_OVER_CONVECTIVE:
+            conv_lst = self.getMMSSourceTag(MMSSourceTermTags.MMS_SOURCE_CONVECTIVE,num_params)
+            diff_lst = self.getMMSSourceTag(MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE,num_params)
+            if tag == MMSSourceTermTags.MMS_SOURCE_CONVECTIVE_OVER_DIFFUSIVE:
+                var = [conv_lst[i]/diff_lst[i] for i in range(len(conv_lst))]
+            else:
+                var = [diff_lst[i]/conv_lst[i] for i in range(len(conv_lst))]
+        else:
+            raise ValueError("The tag for the MMS source term is unknown.")
+        return subsNumParams(var, num_params)
 
     def getSolTag(self, tag: SolutionTags, num_params: Optional[dict] = None):
         if tag not in self.manuf_sol_container.getDicManufSolPerTag():
@@ -140,8 +166,72 @@ class GeneralPhysicalModels:
 
     def sourceTerm(self, num_params: Optional[dict] = None, replace_params_before_deriv: bool = False):
         raise NotImplementedError()
+    
+    def computeMMSConvectiveSourceTerm(self, num_params: Optional[dict] = None) -> list:
+        F_c = self.convectiveFlux(num_params)
+        MMS_source = [0] * self.manuf_sol_container.getNumberFields()
+        for i_var in range(self.manuf_sol_container.getNumberFields()):
+            MMS_source[i_var] = 0
+            geom_coeff = 1.0
+            for i_dim in range(self.domain_dim):
+                if self.coord_system == CoordinatesSystemType.CYLINDRICAL and i_dim == 1:
+                    geom_coeff = 1.0 / self.spatial_sym_var[0]
+                MMS_source[i_var] = MMS_source[i_var] + geom_coeff * (sp.diff(F_c[i_var][i_dim],self.spatial_sym_var[i_dim]))
+        return MMS_source
+    
+    def computeMMSDiffusiveSourceTerm(self, num_params: Optional[dict] = None) -> list:
+        F_d = self.diffusiveFlux(num_params, True)
+        MMS_source = [0] * self.manuf_sol_container.getNumberFields()
+        for i_var in range(self.manuf_sol_container.getNumberFields()):
+            MMS_source[i_var] = 0
+            geom_coeff = 1.0
+            for i_dim in range(self.domain_dim):
+                if self.coord_system == CoordinatesSystemType.CYLINDRICAL and i_dim == 1:
+                    geom_coeff = 1.0 / self.spatial_sym_var[0]
+                MMS_source[i_var] = MMS_source[i_var] - geom_coeff * (sp.diff(F_d[i_var][i_dim],self.spatial_sym_var[i_dim]))
+        return MMS_source
+    
+    def computeMMSUnsteadySourceTerm(self, num_params: Optional[dict] = None) -> list:
+        U = self.solVector(num_params)
+        MMS_source = [0] * self.manuf_sol_container.getNumberFields()
+        for i_var in range(self.manuf_sol_container.getNumberFields()):
+            MMS_source[i_var] = 0
+            if self.isSteady == False:
+                MMS_source[i_var] = sp.diff(U[i_var],self.temporal_sym_var[0])
+        return MMS_source
+    
+    def computeMMSSourceSourceTerm(self, num_params: Optional[dict] = None) -> list:
+        S = self.sourceTerm(num_params, True)
+        MMS_source = [0] * self.manuf_sol_container.getNumberFields()
+        for i_var in range(self.manuf_sol_container.getNumberFields()):
+            MMS_source[i_var] = 0
+            MMS_source[i_var] = -S[i_var][0]
+        return MMS_source
 
     def computeMMSSourceTerm(self, num_params: Optional[dict] = None) -> list:
+        # U = self.solVector(num_params)
+        # F_c = self.convectiveFlux(num_params)
+        # F_d = self.diffusiveFlux(num_params, True)
+        # S = self.sourceTerm(num_params, True)
+        # MMS_source = [0] * self.manuf_sol_container.getNumberFields()
+        # for i_var in range(self.manuf_sol_container.getNumberFields()):
+        #     MMS_source[i_var] = 0
+        #     geom_coeff = 1.0
+        #     for i_dim in range(self.domain_dim):
+        #         if self.coord_system == CoordinatesSystemType.CYLINDRICAL and i_dim == 1:
+        #             geom_coeff = 1.0 / self.spatial_sym_var[0]
+        #         MMS_source[i_var] = MMS_source[i_var] + geom_coeff * (sp.diff(F_c[i_var][i_dim],self.spatial_sym_var[i_dim]) - sp.diff(F_d[i_var][i_dim],self.spatial_sym_var[i_dim]))
+        #     MMS_source[i_var] = MMS_source[i_var] - S[i_var][0]
+        #     if self.isSteady == False:
+        #         MMS_source[i_var] = MMS_source[i_var] + sp.diff(U[i_var],self.temporal_sym_var[0])
+        # return MMS_source
+        # MMS_conv_source = self.computeMMSConvectiveSourceTerm(num_params)
+        # MMS_diff_source = self.computeMMSDiffusiveSourceTerm(num_params)
+        # MMS_src_source = self.computeMMSSourceSourceTerm(num_params)
+        # MMS_unsteady_source = self.computeMMSUnsteadySourceTerm(num_params)
+        # src_tot = [MMS_conv_source[i]+MMS_diff_source[i]+MMS_src_source[i]+MMS_unsteady_source[i] for i in range(len(MMS_conv_source))]
+        # return src_tot
+    
         U = self.solVector(num_params)
         F_c = self.convectiveFlux(num_params)
         F_d = self.diffusiveFlux(num_params, True)

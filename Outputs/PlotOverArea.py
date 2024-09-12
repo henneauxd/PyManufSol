@@ -99,6 +99,7 @@ class PlotOver2DArea:
         mySurf._facecolors2d=mySurf._facecolor3d
         mySurf._edgecolors2d=mySurf._edgecolor3d
         # plt.contour(X,Y,int_pos,levels=[0],linewidth=3)
+        # plt.contourf(X,Y,Z,20)
 
     def plotThisVectorOver2DArea(self, field: sp.Expr, nb_pts: int, sideInterface: int, ax, name_var: str):
         area_extr = self.getAreaExtremities()

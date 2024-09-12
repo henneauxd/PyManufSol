@@ -89,6 +89,7 @@ class CompressibleNavierStokesModels(GeneralPhysicalModels):
                 mom_vec = [self.getSolTag(fst.MOMENTUM_X, num_params), self.getSolTag(fst.MOMENTUM_Y, num_params)]
                 if self.domain_dim == 3:
                     mom_vec.append(self.getSolTag(fst.MOMENTUM_Z, num_params))
+                var = mom_vec
             elif tag == fst.INTERNALENERGY:
                 var = self.eos.e_rhoT(self.getSolTag(fst.DENSITY, num_params), T)
             elif tag == fst.KINETICENERGY:

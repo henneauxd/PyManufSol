@@ -36,7 +36,7 @@ class GeneralBoundaryConditions:
     def checkCondition(self, cond: sp.Expr, sym_var, isDirichletType: bool):
         if isDirichletType:
             pass
-        if any(var in cond.free_symbols for var in sym_var):
+        elif any(var in cond.free_symbols for var in sym_var):
             raise ValueError("This non-Dirichlet boundary condition depends on spatial variables. This means that the unknowns manuf sol parameters will be dependent on the spatila coordinates and that a DAE system would need to be solved to find their expressions since a non-Dirichilet BC type has been prescribed. However, this is not possible for the moment")
         pass
 

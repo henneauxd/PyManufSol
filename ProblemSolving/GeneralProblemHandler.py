@@ -3,7 +3,7 @@ from BoundaryConditions.GeneralBoundaryConditions import GeneralBoundaryConditio
 from BoundaryConditions.BoundaryGeometry import *
 from ProblemSolving.GeneralParametersSolver import GeneralParametersSolver
 from Common.Utilities import *
-from Common.MMSTags import VarSetTags, DefaultVarSetTags, SolutionTags, SolutionGradientTags, ProjectionType
+from Common.MMSTags import VarSetTags, MMSSourceTermTags, DefaultVarSetTags, SolutionTags, SolutionGradientTags, ProjectionType
 from Outputs.PlotOverArea import PlotOver2DArea
 from typing import Union
 import sympy as sp
@@ -11,7 +11,7 @@ import copy
 
 class QuantityInfoForPlot:
 
-    def __init__(self, tag: Union[SolutionTags, SolutionGradientTags], isDeriv: bool = False, projectToDir: ProjectionType = ProjectionType.NOPROJECTION, evalAtTime: Optional[float] = None, plotVecArrows: bool = False):
+    def __init__(self, tag: Union[MMSSourceTermTags, SolutionTags, SolutionGradientTags], isDeriv: bool = False, projectToDir: ProjectionType = ProjectionType.NOPROJECTION, evalAtTime: Optional[float] = None, plotVecArrows: bool = False):
         self.tag = tag
         self.isDeriv = isDeriv
         self.projectToDir = projectToDir
@@ -117,6 +117,7 @@ class GeneralProblemHandler:
                 if simplify and isinstance(sol_vec[i], sp.Expr):
                     sol_vec[i] = sp.simplify(sol_vec[i])
                 s_str = str(sol_vec[i]).replace("**","^").replace(" ","")
+                # s_str = str(sol_vec[i]).replace("**","^").replace(" ","").replace("atan2(y,x)","(Step(x)*2.0*atan(y/(sqrt(x^2+y^2)+x))+Step(-x)*2.0*atan((sqrt(x^2+y^2)-x)/y))")
                 writeOneLineInFile(file, s_str, fileType)
                 if printOnScreen:
                     print("Solution(%d):  %s"%(i, s_str))
@@ -220,7 +221,9 @@ class GeneralProblemHandler:
             for side in sideInterfaces:
                 name_plot_phase = name_plot + ", " + str(side)
                 sol = 0.0
-                if isinstance(tag, SolutionTags):
+                if isinstance(tag, MMSSourceTermTags):
+                    sol = self.physical_models[side].getMMSSourceTag(tag, num_params)
+                elif isinstance(tag, SolutionTags):
                     if not q.isDerivQuantity():
                         sol = self.physical_models[side].getSolTag(tag, num_params)
                     else:
@@ -280,7 +283,9 @@ class GeneralProblemHandler:
                 name_plot_phase = name_plot + ", " + str(side)
                 sol = 0.0
                 sol = 0.0
-                if isinstance(tag, SolutionTags):
+                if isinstance(tag, MMSSourceTermTags):
+                    sol = self.physical_models[side].getMMSSourceTag(tag, num_params)
+                elif isinstance(tag, SolutionTags):
                     if not q.isDerivQuantity():
                         sol = self.physical_models[side].getSolTag(tag, num_params)
                     else:
@@ -296,7 +301,11 @@ class GeneralProblemHandler:
                 if isinstance(sol,list) and q.isVectorArrowsPlot():
                     area.plotThisVectorOver2DArea(sol, nb_pts, sideInterfaces[side], axes, name_plot_phase)
                 else:
-                    area.plotThisFieldOver2DArea(sol, nb_pts, sideInterfaces[side], axes, name_plot_phase)  
+                    if isinstance(sol,list):
+                        for ind_sol in range(len(sol)-1):
+                            area.plotThisFieldOver2DArea(sol[ind_sol], nb_pts, sideInterfaces[side], axes, name_plot_phase+str(ind_sol))  
+                    else:
+                        area.plotThisFieldOver2DArea(sol, nb_pts, sideInterfaces[side], axes, name_plot_phase)
             axes.legend()
             axes.legend(prop={'size': 16}, handlelength=3.5)
             axes.set_xlabel(str(sym_var[0]), size = 26)

@@ -5,32 +5,40 @@ project_path = script_path+"/../."
 sys.path.insert(0, project_path)
 
 import sympy as sp
+import copy
+
+# --- MODULE with general utilities ---
+from Common.MMSTags import CompressibleFlowVarSetTags, FluidSolutionTags, FluidSolutionGradientTags, ProjectionType
+from Common.MMSTags import CoordinatesSystemType, OutputFileType
+
+# --- MODULE 1: ManufSolution ---
+from ManufSolution.ManufSolShape.UserDefinedManufSol import UserDefinedManufSol
+from ManufSolution.ManufSolContainer.CompressibleFlowManufSolContainer import CompressibleFlowManufSolContainer
+
+# --- MODULE 2: PhysicalModels ---
 from PhysicalModels.ThermoPhysicalModels.EOS_factory import StiffenedGasEOS
 from PhysicalModels.ThermoPhysicalModels.TransportProperties_factory import ConstantFluidTransportProperty
 from PhysicalModels.CompressibleNavierStokesModels import CompressibleNavierStokesModels
-from ManufSolution.ManufSolShape.PolarPolynomialManufSol import PolarPolynomialManufSol
-from ManufSolution.ManufSolShape.UserDefinedManufSol import UserDefinedManufSol
-from ManufSolution.ManufSolContainer.CompressibleFlowManufSolContainer import CompressibleFlowManufSolContainer
-from ManufSolution.ManufSolContainer.GeneralManufSolContainer import GeneralManufSolContainerMultiplePhases
-from Common.MMSTags import CompressibleFlowVarSetTags, FluidSolutionTags, FluidSolutionGradientTags, ProjectionType
+
+# --- MODULE 3: BoundaryConditions ---
 from BoundaryConditions.BoundaryGeometry import BoundaryGeometryFromEquation, TimeDependentBoundaryGeometryFromEquation
 from BoundaryConditions.GeneralBoundaryConditions import GeneralBoundaryConditions
-from Common.MMSTags import CoordinatesSystemType, OutputFileType
+
+# --- MODULE 4: ProblemSolving ---
 from ProblemSolving.GeneralProblemHandler import GeneralProblemHandler, QuantityInfoForPlot
+
+# --- MODULE 5: Outputs ---
 from Outputs.PlotOverArea import *
-import copy
+
 
 current_directory = os.getcwd()
-output_folder_name = "Examples/UnsteadyInclinedInterfaceOutput/"
+output_folder_name = "PAPER_UnsteadyInclinedInterfaceOutput/"
 output_absolute_path = os.path.join(current_directory,output_folder_name)
+output_path = output_absolute_path
 
 #* -------------------------------------------------------------------------- *#
 #* --- 0/ DEFINITION OF PROBLEM PARAMETERS ---
 #* -------------------------------------------------------------------------- *#
-pressureNormalStressDecoupled = True
-splitting_2 = False 
-pressureHeatFluxDecoupled = False
-
 # Domain geometry
 L = [0.0,1.0]
 H = [0.0,1.0]
@@ -40,8 +48,8 @@ y_interface_pos = H[0] + y_dim/3
 domain_dim = 2
 
 # Jumps conditions parameters
-m_dot = 0.0 # using m_dot != 0 leads to a non-solvable system...
-deltaTangentStress = 0.0#0.2
+m_dot = 0.0 
+deltaTangentStress = 0.0
 deltaTangentVel = -0.1
 delta_p = -0.2
 deltaTemp = 0.5
@@ -57,7 +65,7 @@ T_0_user = 1.0*sp.cos(0.75*sp.pi*sym_variables[1]) + 2.0
 T_0 = UserDefinedManufSol([], sym_variables, T_0_user)
 
 T_coeff = list(sp.symbols('bT_1, bT_2'))
-T_1_user = 0.1*T_coeff[0]*sp.cos(5*sp.pi*sym_variables[1]/(4*y_dim)) + T_coeff[1] #+ 2.25
+T_1_user = 0.1*T_coeff[0]*sp.cos(5*sp.pi*sym_variables[1]/(4*y_dim)) + T_coeff[1]
 T_1 = UserDefinedManufSol(T_coeff, sym_variables, T_1_user)
 
 # Pressures
@@ -65,37 +73,30 @@ p_0_user = 1.0*sp.cos(0.75*sp.pi*sym_variables[1]) + 2.45
 p_0 = UserDefinedManufSol([], sym_variables, p_0_user)
 
 p_coeff = [sp.symbols('bP_1')]
-# p_1_user = p_coeff[0]*sp.cos(5*sp.pi*sym_variables[1]/(4*y_dim)) + 2.25
 p_1_user = 1.0*sp.cos(5*sp.pi*sym_variables[1]/(4*y_dim)) + p_coeff[0]
 p_1 = UserDefinedManufSol(p_coeff, sym_variables, p_1_user)
 
 # Horizontal velocities
-u_0_user = 0.0*sym_variables[1]+0.0#1.0*sp.cos(0.75*sp.pi*sym_variables[1]/y_dim) + 2.45
+u_0_user = 0.0*sym_variables[1]+0.0
 u_0 = UserDefinedManufSol([], sym_variables, u_0_user)
 
 u_coeff = list(sp.symbols('bU_1, bU_2'))
 u_1_user = u_coeff[0]*sp.cos(5*sp.pi*sym_variables[1]/(4*y_dim)) + u_coeff[1] + 0.0
 u_1 = UserDefinedManufSol(u_coeff, sym_variables, u_1_user)
-# u_coeff = [sp.symbols('bU_1')]
-# u_1_user = 0.0*u_coeff[0]*sp.cos(5*sp.pi*sym_variables[1]/(4*y_dim)) + u_coeff[0] + 0.0
-# u_1 = UserDefinedManufSol(u_coeff, sym_variables, u_1_user)
 
 # Vertical velocities
-v_0_user = 0.0*sym_variables[1]+1.0#1.0*sp.cos(0.75*sp.pi*sym_variables[1]/y_dim) + 2.45
+v_0_user = 0.0*sym_variables[1]+1.0
 v_0 = UserDefinedManufSol([], sym_variables, v_0_user)
 
 v_coeff = list(sp.symbols('bV_1, bV_2'))
 v_1_user = v_coeff[0]*sp.cos(5*sp.pi*sym_variables[1]/(4*y_dim)) + v_coeff[1] + 0.0
 v_1 = UserDefinedManufSol(v_coeff, sym_variables, v_1_user)
 
-# Assembly into dict
+# Assembly of manuf sol containers
 manuf_sol_list_0 = [[p_0], [u_0, v_0], [T_0]]
 manuf_sol_list_1 = [[p_1], [u_1, v_1], [T_1]]
 manuf_sol_cont_0 = CompressibleFlowManufSolContainer(manuf_sol_list_0, domain_dim, sym_variables[0:2], CompressibleFlowVarSetTags.PRIMITIVE_PVT, [sym_variables[-1]])
 manuf_sol_cont_1 = CompressibleFlowManufSolContainer(manuf_sol_list_1, domain_dim, sym_variables[0:2], CompressibleFlowVarSetTags.PRIMITIVE_PVT, [sym_variables[-1]])
-dict_symb_sols = GeneralManufSolContainerMultiplePhases([manuf_sol_cont_0, manuf_sol_cont_1], [0, 1])
-
-print(dict_symb_sols.getDicManufSolPerPhaseAndTag())
 
 #* -------------------------------------------------------------------------- *#
 #* --- 2/ DEFINITION OF THE GOVERNING EQUATIONS ---
@@ -129,14 +130,13 @@ name_model_1 = "phase1"
 eqs_1 = CompressibleNavierStokesModels(name_model_1, manuf_sol_cont_1, domain_dim, EOS_phase_1, transp_prop_1, CoordinatesSystemType.CARTESIAN)
 
 #* -------------------------------------------------------------------------- *#
-#* --- 3/ DEFINITION OF THE BOUNDARY AND JUMPS CONDITIONS (OPTIONAL!) ---
+#* --- 3/ DEFINITION OF THE JUMPS CONDITIONS ---
 #* -------------------------------------------------------------------------- *#
 
-# Definition of boundaries geometry
+# Definition of interface geometry
 vel_interface = 1.0
 iso0_geo = TimeDependentBoundaryGeometryFromEquation(list(sym_variables[0:2]), [0.0, -1.0, -y_interface_pos], "iso0", [sym_variables[-1]], [vel_interface])
 iso0_geo_bis = TimeDependentBoundaryGeometryFromEquation(list(sym_variables[0:2]), [0.0, -1.0, -y_interface_pos], "iso0_bis", [sym_variables[-1]], [vel_interface])
-# iso0_geo = BoundaryGeometryFromEquation(sym_variables, [0.0, -1.0, -y_interface_pos], "iso0")
 coord_to_subsituted = sym_variables[1]
 
 # === Jumps on interface ===
@@ -161,19 +161,15 @@ iso0_jump_bis.addDirichletBCAndSubsituteBoundaryEq(FluidSolutionTags.VELOCITY_VE
 iso0_jump.addDirichletBCAndSubsituteBoundaryEq(FluidSolutionTags.TEMPERATURE, [deltaTemp], coord_to_subsituted)
 
 # - Pressure
-if pressureNormalStressDecoupled:
-    jump_pressure = delta_p - m_dot * jump_v_n
-    iso0_jump.addDirichletBCAndSubsituteBoundaryEq(FluidSolutionTags.PRESSURE, [jump_pressure], coord_to_subsituted)
+jump_pressure = delta_p - m_dot * jump_v_n
+iso0_jump.addDirichletBCAndSubsituteBoundaryEq(FluidSolutionTags.PRESSURE, [jump_pressure], coord_to_subsituted)
 
 # -> Neumann jumps on fluxes
 
 # - Normal shear stress
 p_0 = eqs_0.getSolTag(FluidSolutionTags.PRESSURE)
 p_1 = eqs_1.getSolTag(FluidSolutionTags.PRESSURE) 
-if pressureNormalStressDecoupled: # -[tau_nn] = 0.0 -> [p] = sigma*kappa - m_dot * [u_n]
-    jump_tau_nn = 0.0
-else: # -[tau_nn] = -m_dot*[u_n] - [p] + sigmaKappa
-    jump_tau_nn = -m_dot * jump_v_n - (p_0-p_1) + delta_p
+jump_tau_nn = 0.0 # -[tau_nn] = 0.0 -> [p] = sigma*kappa - m_dot * [u_n]
 iso0_jump.addNeumannBCAndSubsituteBoundaryEq(FluidSolutionGradientTags.SHEARSTRESS, [-jump_tau_nn], coord_to_subsituted, ProjectionType.NORMALNORMAL)
 
 # - Tangential shear stress
@@ -195,86 +191,37 @@ u_n_ave = 0.5 * (vel_0_n_gamma+vel_1_n_gamma)
 overRho_ave = 0.5 * (1.0/rho_0 + 1.0/rho_1)
 u_gamma_n = u_n_ave - m_dot * overRho_ave 
 u_gamma_t = 0.5 * (vel_0_t_gamma+vel_1_t_gamma)   
-if pressureHeatFluxDecoupled:
-    jump_q_minus_tau = u_gamma_t * deltaTangentStress + heatSource
-    if m_dot != 0 and splitting_2:
-        jump_convective_total_energy = (-(p_0*vel_0_n_gamma-p_1*vel_1_n_gamma) + delta_p * u_gamma_n)/m_dot
-        iso0_jump.addDirichletBCAndSubsituteBoundaryEq(FluidSolutionTags.TOTALENERGY, [jump_pressure], coord_to_subsituted)
-else:
-    jump_q_minus_tau = -m_dot * (E_0-E_1) - (p_0*vel_0_n_gamma-p_1*vel_1_n_gamma) + delta_p * u_gamma_n + u_gamma_t * deltaTangentStress + heatSource
+jump_q_minus_tau = -m_dot * (E_0-E_1) - (p_0*vel_0_n_gamma-p_1*vel_1_n_gamma) + delta_p * u_gamma_n + u_gamma_t * deltaTangentStress + heatSource
 iso0_jump.addNeumannBCAndSubsituteBoundaryEq(FluidSolutionGradientTags.HEATFLUX_MINUS_VISCOUSDISSIPATION, [jump_q_minus_tau], coord_to_subsituted, ProjectionType.NORMAL)
-
-print(" ")
-print("======== Printing list of conditions ========")
-jumps_print = iso0_jump.getImposedConditions()
-for i in jumps_print:
-    print(sp.simplify(i))
-jumps_print = iso0_jump_bis.getImposedConditions()
-for i in jumps_print:
-    print(sp.simplify(i))
 
 #* -------------------------------------------------------------------------- *#
 #* --- 4/ PROBLEM HANDLING ---
 #* -------------------------------------------------------------------------- *#
-
+# During the construction of the problem, the system to determine the unknow 
+# parameters is solved
 my_problem = GeneralProblemHandler([eqs_0, eqs_1], [iso0_jump, iso0_jump_bis])
-params_sol = my_problem.getParametricSolCoeff()
-
-tag_pvT = [FluidSolutionTags.PRESSURE, FluidSolutionTags.VELOCITY_X, FluidSolutionTags.VELOCITY_Y, FluidSolutionTags.TEMPERATURE]
-
-print(" ")
-print("======== Printing values of unknown parameters ========")
-for key, value in params_sol.items() :
-    print ("%s =  %s"%(str(key), str(value)))
-print("========================================================")
-
-print(" ")
-print("======== Printing (p, v, T) solutions vectors of both phases ========")
-print("*** Phase 0 ***")
-for i in tag_pvT:
-    print(my_problem.getThisPhysicalModel(name_model_0).getSolTag(i, params_sol))
-print("*** Phase 1 ***")
-for i in tag_pvT:
-    print(my_problem.getThisPhysicalModel(name_model_1).getSolTag(i, params_sol))
-print(" ")
-print("======== Printing normal to boundaries ========")
-print(my_problem.getThisBoundary("iso0").getBoundaryGeometry().getNormalToBoundary())
 
 #* -------------------------------------------------------------------------- *#
-#* --- 5/ CHANGE OF COORDINATES SYSTEM (OPTIONAL!) ---
+#* --- 5/ CHANGE OF COORDINATES SYSTEM ---
 #* -------------------------------------------------------------------------- *#
-
 new_sym_variables = sp.symbols('x, y')
 angle_rotation = -15
 my_new_problem = my_problem.copyAndChangeCoordinatesSystem(list(new_sym_variables), CoordinatesSystemType.CARTESIAN, None, [[2,angle_rotation]])
 params_sol_new = my_new_problem.getParametricSolCoeff()
 
-print(" ")
-print("======== Printing (p, v, T) solutions vectors in new rotated reference frame ========")
-print("*** Phase 0 ***")
-for i in tag_pvT:
-    print(my_new_problem.getThisPhysicalModel(name_model_0).getSolTag(i, params_sol_new))
-print("*** Phase 1 ***")
-for i in tag_pvT:
-    print(my_new_problem.getThisPhysicalModel(name_model_1).getSolTag(i, params_sol_new))
-
-print(" ")
-print("======== Printing normal to boundaries ========")
-print(my_new_problem.getThisBoundary("iso0").getBoundaryGeometry().getBoundaryEquation())
-new_normal = my_new_problem.getThisBoundary("iso0").getBoundaryGeometry().getNormalToBoundary()
-print([sp.simplify(i) for i in new_normal])
-
 #* -------------------------------------------------------------------------- *#
-#* --- 6/ OUTPUTS PRINTING AND PLOTS ---
+#* --- 6/ COMPUTATION OF SOURCE TERMS ---
 #* -------------------------------------------------------------------------- *#
-
-# Print in files
-output_path = output_absolute_path
-my_new_problem.printMMSSourceTermInFile(output_path, OutputFileType.TEXT, False, True)
+# This subsitutes the parameters values into the symbolic solutions expressions and write them in a file
 my_new_problem.printSolutionVectorInFile([], CompressibleFlowVarSetTags.PRIMITIVE_PVT, output_path)
+# This computes the source terms and write them in a file
+my_new_problem.printMMSSourceTermInFile(output_path, OutputFileType.TEXT, False, True)
 
+#* -------------------------------------------------------------------------- *#
+#* --- 7/ PLOTS ---
+#* -------------------------------------------------------------------------- *#
 # Area over which to plot
-time_plot_vec = [0.0,0.2]#0.5
+time_plot_vec = [0.0,0.2]
 pt_1 = [L[0], H[0]]
 pt_2 = [L[0], H[1]]
 pt_3 = [L[1], H[1]]
@@ -289,9 +236,6 @@ for time_plot in time_plot_vec:
     iso0_plot_geo.setBoundaryEquation(iso0_plot_geo.getBoundaryEquation().subs({sym_variables[-1]: time_plot}))
     iso0_plot_geo.setSymVariables(new_sym_variables)
     plot_area_cart = PlotOver2DAreaWithStraightBoundaries(new_sym_variables, [iso0_plot_geo], [pt_1, pt_2, pt_3, pt_4])
-    print(iso0_plot_geo.getBoundaryEquation())
-
-    # plot_area_cart_original = PlotOver2DAreaWithStraightBoundaries(sym_variables, [my_problem.getThisBoundary("iso0").getBoundaryGeometry()], [pt_1, pt_2, pt_3, pt_4])
 
     # 1-D lines along which to plot
     nb_lines_plot = 4
