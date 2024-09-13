@@ -29,15 +29,18 @@ output_absolute_path = os.path.join(script_path,output_folder_name)
 #* -------------------------------------------------------------------------- *#
 do_plot = True
 # Domain geometry
-Lx = [0.0,1.0]
-Ly = [0.0,1.0]
-Lz = [0.0,1.0]
+# Lx = [0.0,1.0]
+# Ly = [0.0,1.0]
+# Lz = [0.0,1.0]
+Lx = [-0.5,0.5]
+Ly = [-0.5,0.5]
+Lz = [-0.5,0.5]
 domain_dim = 2
-time_dependent = True
+time_dependent = False
 
 # Equation of state
 gamma = 1.4
-Cv = 2.5
+Cv = 715
 EOS = PerfectGasEOS(gamma, Cv, domain_dim)
 
 # Transport properties
@@ -69,15 +72,15 @@ else:
 A = 1.0
 B = 1.0
 C = 1.0
-P_0 = 100.0
-T_0 = 100.0
+P_0 = 10000.0
+T_0 = 300.0
 Amp_p = 10.0
 Amp_T = 10.0
 Amp_vel = 10.0
 omega = 10.0
 nu = 0.1
 if not time_dependent:
-    nu = 0.0
+    nu = omega = 0.0
 
 x = sym_variables[0]
 y = sym_variables[1]
@@ -164,7 +167,10 @@ if domain_dim != 2 and do_plot:
 
 if domain_dim == 2 and do_plot:
     # Area over which to plot
-    time_plot_vec = [0.0,0.1,0.2,0.3]#0.5
+    if time_dependent:
+        time_plot_vec = [0.0,0.1,0.2,0.3]#0.5
+    else:
+        time_plot_vec = [0.0]
     pt_1 = [Lx[0], Ly[0]]
     pt_2 = [Lx[0], Ly[1]]
     pt_3 = [Lx[1], Ly[1]]
@@ -184,6 +190,8 @@ if domain_dim == 2 and do_plot:
             lines_plot.append(BoundaryGeometryFromEquation(sym_variables[0:domain_dim], [1.0, 0.0, coords_plot[i]], "plot_line_"+str(i)))
 
         # Quantities to plot
+        if not time_dependent:
+            time_plot = None
         u_plot = QuantityInfoForPlot(FluidSolutionTags.VELOCITY_X, False, ProjectionType.NOPROJECTION, time_plot)
         v_plot = QuantityInfoForPlot(FluidSolutionTags.VELOCITY_Y, False, ProjectionType.NOPROJECTION, time_plot)
         T_plot = QuantityInfoForPlot(FluidSolutionTags.TEMPERATURE, False, ProjectionType.NOPROJECTION, time_plot)
@@ -194,9 +202,12 @@ if domain_dim == 2 and do_plot:
         q_n_plot = QuantityInfoForPlot(FluidSolutionGradientTags.HEATFLUX, True, ProjectionType.NORMAL, time_plot)
         q_minus_tauu_n_plot = QuantityInfoForPlot(FluidSolutionGradientTags.HEATFLUX_MINUS_VISCOUSDISSIPATION, True, ProjectionType.NORMAL, time_plot)
         
-        src_conv_plot = QuantityInfoForPlot(MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE_OVER_CONVECTIVE, False, ProjectionType.NOPROJECTION, time_plot)
+        # src_conv_plot = QuantityInfoForPlot(MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE_OVER_CONVECTIVE, False, ProjectionType.NOPROJECTION, time_plot)
+        src_conv_plot = QuantityInfoForPlot(MMSSourceTermTags.MMS_SOURCE_CONVECTIVE, False, ProjectionType.NOPROJECTION, time_plot)
+        src_diff_plot = QuantityInfoForPlot(MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE, False, ProjectionType.NOPROJECTION, time_plot)
 
-        quantities_plot = [src_conv_plot]#, T_plot, u_plot, v_plot, rho_plot]
+        quantities_plot = [src_conv_plot, src_diff_plot]
+        quantities_plot = [T_plot, p_plot, u_plot, v_plot, rho_plot]
 
         # Sides of interface
         side_interface_plot = dict()
@@ -206,5 +217,5 @@ if domain_dim == 2 and do_plot:
 
         # my_problem.plotQuantitiesAlongOneDimLinesOverThisArea(quantities_plot, lines_plot, plot_area_cart, side_interface_plot, 20, 1)
 
-        my_problem.plotQuantitiesOverThisTwoDimArea(quantities_plot, plot_area_cart, side_interface_plot, 40)
+        my_problem.plotQuantitiesOverThisTwoDimArea(quantities_plot, plot_area_cart, side_interface_plot, 20)
 

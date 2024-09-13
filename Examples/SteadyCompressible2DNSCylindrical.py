@@ -221,9 +221,9 @@ if do_plot:
     T_plot = QuantityInfoForPlot(FluidSolutionTags.TEMPERATURE)
     p_plot = QuantityInfoForPlot(FluidSolutionTags.PRESSURE)
     rho_plot = QuantityInfoForPlot(FluidSolutionTags.DENSITY)
-    # src_conv_plot = QuantityInfoForPlot(MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE_OVER_CONVECTIVE, False, ProjectionType.NOPROJECTION, time_plot)
+    src_conv_plot = QuantityInfoForPlot(MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE_OVER_CONVECTIVE, False)
 
-    quantities_plot = [T_plot, u_plot, v_plot, p_plot, rho_plot]
+    quantities_plot = [src_conv_plot, T_plot, u_plot, v_plot, p_plot, rho_plot]
 
     # Sides of interface
     side_interface_plot = dict()
