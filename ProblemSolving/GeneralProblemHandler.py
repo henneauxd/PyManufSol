@@ -99,6 +99,7 @@ class GeneralProblemHandler:
                 if simplify and isinstance(src[i], sp.Expr):
                     src[i] = sp.simplify(src[i])
                 s_str = str(src[i]).replace("**","^").replace(" ","")
+                # s_str = str(src[i]).replace("**","^").replace(" ","").replace("atan2(y,x)","(Step(x)*2.0*atan(y/(sqrt(x^2+y^2)+x))+Step(-x)*2.0*atan((sqrt(x^2+y^2)-x)/y))")
                 writeOneLineInFile(file, s_str, fileType)
                 if printOnScreen:
                     print(" ")

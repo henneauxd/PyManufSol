@@ -207,7 +207,7 @@ if domain_dim == 2 and do_plot:
         src_diff_plot = QuantityInfoForPlot(MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE, False, ProjectionType.NOPROJECTION, time_plot)
 
         quantities_plot = [src_conv_plot, src_diff_plot]
-        quantities_plot = [T_plot, p_plot, u_plot, v_plot, rho_plot]
+        # quantities_plot = [T_plot, p_plot, u_plot, v_plot, rho_plot]
 
         # Sides of interface
         side_interface_plot = dict()

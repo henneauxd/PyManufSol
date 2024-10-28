@@ -86,7 +86,7 @@ else:
     k_v_r = 1.0
     A_T = 2.0
     k_T_theta = 1.0
-    k_T_r = 1.0
+    k_T_r = 3.0
     power_p = 2
 
 
@@ -223,7 +223,7 @@ if do_plot:
     rho_plot = QuantityInfoForPlot(FluidSolutionTags.DENSITY)
     src_conv_plot = QuantityInfoForPlot(MMSSourceTermTags.MMS_SOURCE_DIFFUSIVE_OVER_CONVECTIVE, False)
 
-    quantities_plot = [src_conv_plot, T_plot, u_plot, v_plot, p_plot, rho_plot]
+    quantities_plot = [T_plot, u_plot, v_plot, p_plot, rho_plot] #src_conv_plot
 
     # Sides of interface
     side_interface_plot = dict()
